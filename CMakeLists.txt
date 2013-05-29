@@ -6,7 +6,13 @@ ADD_DEFINITIONS(-Os -ggdb -Wall -Werror --std=gnu99 -Wmissing-declarations)
 SET(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "")
 
 SET(SOURCES main.c)
-SET(LIBS ubox blobmsg_json)
+
+find_package(PkgConfig)
+pkg_check_modules(LIBUSB1 REQUIRED libusb-1.0)
+ADD_DEFINITIONS(${LIBUSB1_CFLAGS})
+FIND_LIBRARY(libusb NAMES usb-1.0 HINTS ${LIBUSB1_LIBDIR})
+
+SET(LIBS ubox blobmsg_json ${libusb})
 
 IF(DEBUG)
   ADD_DEFINITIONS(-DDEBUG -g3)
