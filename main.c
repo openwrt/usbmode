@@ -20,6 +20,7 @@ static const char *config_file = DEFAULT_CONFIG;
 static struct blob_buf conf;
 
 struct blob_attr **messages = NULL;
+int *message_len;
 int n_messages = 0;
 
 static struct avl_tree devices;
@@ -73,20 +74,20 @@ static int hexstr2bin(const char *hex, char *buffer, int len)
 	return 0;
 }
 
-static bool convert_message(struct blob_attr *attr)
+static int convert_message(struct blob_attr *attr)
 {
 	char *data;
 	int len;
 
-	if (!attr)
-		return true;
-
 	data = blobmsg_data(attr);
 	len = strlen(data);
 	if (len % 2)
-		return false;
+		return -1;
 
-	return !hexstr2bin(data, data, len / 2);
+	if (hexstr2bin(data, data, len / 2))
+		return -1;
+
+	return len / 2;
 }
 
 static int parse_config(void)
@@ -115,12 +116,17 @@ static int parse_config(void)
 		n_messages++;
 
 	messages = calloc(n_messages, sizeof(*messages));
+	message_len = calloc(n_messages, sizeof(*message_len));
 	n_messages = 0;
 	blobmsg_for_each_attr(cur, tb[CONF_MESSAGES], rem) {
-		if (!convert_message(cur)) {
+		int len = convert_message(cur);
+
+		if (len < 0) {
 			fprintf(stderr, "Invalid data in message %d\n", n_messages);
 			return -1;
 		}
+
+		message_len[n_messages] = len;
 		messages[n_messages++] = cur;
 	}
 
