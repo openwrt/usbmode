@@ -109,5 +109,3 @@ void handle_switch(struct usbdev_data *data)
 
 	modeswitch_cb[mode].cb(data, tb);
 }
-
-

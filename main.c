@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <getopt.h>
 #include <stdbool.h>
+#include <ctype.h>
 
 #include <libubox/blobmsg_json.h>
 #include <libubox/avl.h>
@@ -26,6 +27,67 @@ static struct avl_tree devices;
 static struct libusb_context *usb;
 static struct libusb_device **usbdevs;
 static int n_usbdevs;
+
+static int hex2num(char c)
+{
+	if (c >= '0' && c <= '9')
+		return c - '0';
+
+	c = toupper(c);
+	if (c >= 'A' && c <= 'F')
+		return c - 'A' + 10;
+
+	return -1;
+}
+
+static int hex2byte(const char *hex)
+{
+	int a, b;
+
+	a = hex2num(*hex++);
+	if (a < 0)
+		return -1;
+
+	b = hex2num(*hex++);
+	if (b < 0)
+		return -1;
+
+	return (a << 4) | b;
+}
+
+static int hexstr2bin(const char *hex, char *buffer, int len)
+{
+	const char *ipos = hex;
+	char *opos = buffer;
+	int i, a;
+
+	for (i = 0; i < len; i++) {
+		a = hex2byte(ipos);
+		if (a < 0)
+			return -1;
+
+		*opos++ = a;
+		ipos += 2;
+	}
+
+	return 0;
+}
+
+static bool convert_message(struct blob_attr *attr)
+{
+	char *data;
+	int len;
+
+	if (!attr)
+		return true;
+
+	data = blobmsg_data(attr);
+	len = strlen(data);
+	if (len % 2)
+		return false;
+
+	return !hexstr2bin(data, data, len / 2);
+}
 
 static int parse_config(void)
 {
@@ -54,8 +116,13 @@ static int parse_config(void)
 
 	messages = calloc(n_messages, sizeof(*messages));
 	n_messages = 0;
-	blobmsg_for_each_attr(cur, tb[CONF_MESSAGES], rem)
+	blobmsg_for_each_attr(cur, tb[CONF_MESSAGES], rem) {
+		if (!convert_message(cur)) {
+			fprintf(stderr, "Invalid data in message %d\n", n_messages);
+			return -1;
+		}
 		messages[n_messages++] = cur;
+	}
 
 	blobmsg_for_each_attr(cur, tb[CONF_DEVICES], rem) {
 	    dev = calloc(1, sizeof(*dev));
