@@ -12,13 +12,14 @@ struct usbdev_data {
 	int interface;
 	int msg_endpoint;
 	int response_endpoint;
+	int release_delay;
 	bool need_response;
 
 	char idstr[10];
 	char mfg[128], prod[128], serial[128];
 };
 
-extern struct blob_attr **messages;
+extern char **messages;
 extern int *message_len;
 extern int n_messages;
 

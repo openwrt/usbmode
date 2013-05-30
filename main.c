@@ -19,7 +19,7 @@ static int verbose = 0;
 static const char *config_file = DEFAULT_CONFIG;
 static struct blob_buf conf;
 
-struct blob_attr **messages = NULL;
+char **messages = NULL;
 int *message_len;
 int n_messages = 0;
 
@@ -127,7 +127,7 @@ static int parse_config(void)
 		}
 
 		message_len[n_messages] = len;
-		messages[n_messages++] = cur;
+		messages[n_messages++] = blobmsg_data(cur);
 	}
 
 	blobmsg_for_each_attr(cur, tb[CONF_DEVICES], rem) {
