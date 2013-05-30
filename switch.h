@@ -15,14 +15,6 @@ struct usbdev_data {
 	char mfg[128], prod[128], serial[128];
 };
 
-enum {
-	DATA_MODE,
-	DATA_MSG,
-	DATA_MSG2,
-	DATA_MSG3,
-	__DATA_MAX
-};
-
 void handle_switch(struct usbdev_data *data);
 
 #endif

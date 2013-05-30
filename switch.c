@@ -1,5 +1,12 @@
 #include "switch.h"
 
+enum {
+	DATA_MODE,
+	DATA_MSG,
+	DATA_INTERFACE,
+	__DATA_MAX
+};
+
 static void handle_generic(struct usbdev_data *data, struct blob_attr **tb)
 {
 	fprintf(stderr, "Do generic switch!\n");
@@ -85,11 +92,15 @@ void handle_switch(struct usbdev_data *data)
 	static const struct blobmsg_policy data_policy[__DATA_MAX] = {
 		[DATA_MODE] = { .name = "mode", .type = BLOBMSG_TYPE_STRING },
 		[DATA_MSG] = { .name = "msg", .type = BLOBMSG_TYPE_ARRAY },
+		[DATA_INTERFACE] = { .name = "interface", .type = BLOBMSG_TYPE_INT32 },
 	};
 	struct blob_attr *tb[__DATA_MAX];
 	int mode = MODE_GENERIC;
 
 	blobmsg_parse(data_policy, __DATA_MAX, tb, blobmsg_data(data->info), blobmsg_data_len(data->info));
+
+	if (tb[DATA_INTERFACE])
+		data->interface = blobmsg_get_u32(tb[DATA_INTERFACE]);
 
 	if (tb[DATA_MODE]) {
 		const char *modestr;
