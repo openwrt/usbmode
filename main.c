@@ -187,6 +187,27 @@ find_dev_data(struct usbdev_data *data, struct device *dev)
 	return NULL;
 }
 
+static void
+parse_interface_config(libusb_device *dev, struct usbdev_data *data)
+{
+	struct libusb_config_descriptor *config;
+	const struct libusb_interface *iface;
+
+	data->interface = -1;
+	if (libusb_get_config_descriptor(dev, 0, &config))
+		return;
+
+	data->config = config;
+	if (!config->bNumInterfaces)
+		return;
+
+	iface = &config->interface[0];
+	if (!iface->num_altsetting)
+		return;
+
+	data->interface = iface->altsetting[0].bInterfaceNumber;
+}
+
 static void iterate_devs(cmd_cb_t cb)
 {
 	struct usbdev_data data;
@@ -221,9 +242,15 @@ static void iterate_devs(cmd_cb_t cb)
 			data.devh, data.desc.iSerialNumber,
 			(void *) data.serial, sizeof(data.serial));
 
+		parse_interface_config(usbdevs[i], &data);
+
 		data.info = find_dev_data(&data, dev);
 		if (data.info)
 			cb(&data);
+
+		if (data.config)
+			libusb_free_config_descriptor(data.config);
+
 		libusb_close(data.devh);
 	}
 }
