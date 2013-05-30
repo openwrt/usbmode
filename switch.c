@@ -7,9 +7,14 @@ enum {
 	__DATA_MAX
 };
 
+static void detach_driver(struct usbdev_data *data)
+{
+	libusb_detach_kernel_driver(data->devh, data->interface);
+}
+
 static void handle_generic(struct usbdev_data *data, struct blob_attr **tb)
 {
-	fprintf(stderr, "Do generic switch!\n");
+	detach_driver(data);
 }
 
 static void handle_huawei(struct usbdev_data *data, struct blob_attr **tb)
@@ -34,11 +39,13 @@ static void handle_qisda(struct usbdev_data *data, struct blob_attr **tb)
 
 static void handle_gct(struct usbdev_data *data, struct blob_attr **tb)
 {
+	detach_driver(data);
 	/* TODO */
 }
 
 static void handle_kobil(struct usbdev_data *data, struct blob_attr **tb)
 {
+	detach_driver(data);
 	/* TODO */
 }
 
@@ -54,6 +61,7 @@ static void handle_mobile_action(struct usbdev_data *data, struct blob_attr **tb
 
 static void handle_cisco(struct usbdev_data *data, struct blob_attr **tb)
 {
+	detach_driver(data);
 	/* TODO */
 }
 
