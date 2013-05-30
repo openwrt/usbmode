@@ -84,9 +84,7 @@ void handle_switch(struct usbdev_data *data)
 {
 	static const struct blobmsg_policy data_policy[__DATA_MAX] = {
 		[DATA_MODE] = { .name = "mode", .type = BLOBMSG_TYPE_STRING },
-		[DATA_MSG] = { .name = "msg", .type = BLOBMSG_TYPE_INT32 },
-		[DATA_MSG2] = { .name = "msg2", .type = BLOBMSG_TYPE_INT32 },
-		[DATA_MSG3] = { .name = "msg3", .type = BLOBMSG_TYPE_INT32 },
+		[DATA_MSG] = { .name = "msg", .type = BLOBMSG_TYPE_ARRAY },
 	};
 	struct blob_attr *tb[__DATA_MAX];
 	int mode = MODE_GENERIC;

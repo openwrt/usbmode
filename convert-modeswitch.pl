@@ -153,12 +153,13 @@ sub dev_opt {
 		my @val = @$val;
 		undef $val;
 		foreach my $elem (@val) {
+			my $json = json_val($elem, $type);
+			next unless defined $json;
 			if (defined $val) {
-				$val = "$val, "
+				$val = "$val, $json"
 			} else {
-				$val = "";
+				$val = $json;
 			}
-			$val .= json_val($elem, $type);
 		}
 		$val = "[ $val ]";
 	} else {
@@ -205,9 +206,12 @@ foreach my $devid (sort keys %devices) {
 		dev_opt($cur->{Mode}, "mode", "string", \$sep);
 		dev_opt($cur->{NoDriverLoading}, "no_driver", "bool", \$sep);
 		dev_opt($cur->{MessageEndpoint}, "msg_endpoint", "int", \$sep);
-		dev_opt($cur->{MessageContent}, "msg", "int", \$sep);
-		dev_opt($cur->{MessageContent2}, "msg2", "int", \$sep);
-		dev_opt($cur->{MessageContent3}, "msg3", "int", \$sep);
+		my $msg = [
+			$cur->{MessageContent},
+			$cur->{MessageContent2},
+			$cur->{MessageContent3}
+		];
+		dev_opt($msg, "msg", "array:int", \$sep);
 		dev_opt($cur->{WaitBefore}, "wait", "int", \$sep);
 		dev_opt($cur->{ReleaseDelay}, "release_delay", "int", \$sep);
 		dev_opt($cur->{NeedResponse}, "response", "bool", \$sep);
