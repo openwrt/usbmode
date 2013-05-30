@@ -19,8 +19,8 @@ static int verbose = 0;
 static const char *config_file = DEFAULT_CONFIG;
 static struct blob_buf conf;
 
-static struct blob_attr **messages;
-static int n_messages;
+struct blob_attr **messages = NULL;
+int n_messages = 0;
 
 static struct avl_tree devices;
 
@@ -192,6 +192,8 @@ parse_interface_config(libusb_device *dev, struct usbdev_data *data)
 {
 	struct libusb_config_descriptor *config;
 	const struct libusb_interface *iface;
+	const struct libusb_interface_descriptor *alt;
+	int i;
 
 	data->interface = -1;
 	if (libusb_get_config_descriptor(dev, 0, &config))
@@ -205,7 +207,28 @@ parse_interface_config(libusb_device *dev, struct usbdev_data *data)
 	if (!iface->num_altsetting)
 		return;
 
-	data->interface = iface->altsetting[0].bInterfaceNumber;
+	alt = &iface->altsetting[0];
+	data->interface = alt->bInterfaceNumber;
+
+	for (i = 0; i < alt->bNumEndpoints; i++) {
+		const struct libusb_endpoint_descriptor *ep = &alt->endpoint[i];
+		bool out = false;
+
+		if (data->msg_endpoint && data->response_endpoint)
+			break;
+
+		if ((ep->bmAttributes & LIBUSB_TRANSFER_TYPE_MASK) !=
+		    LIBUSB_TRANSFER_TYPE_BULK)
+			continue;
+
+		out = (ep->bEndpointAddress & LIBUSB_ENDPOINT_DIR_MASK) ==
+		      LIBUSB_ENDPOINT_OUT;
+
+		if (!data->msg_endpoint && out)
+			data->msg_endpoint = ep->bEndpointAddress;
+		if (!data->response_endpoint && !out)
+			data->response_endpoint = ep->bEndpointAddress;
+	}
 }
 
 static void iterate_devs(cmd_cb_t cb)
