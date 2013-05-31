@@ -19,12 +19,17 @@ static void detach_driver(struct usbdev_data *data)
 	libusb_detach_kernel_driver(data->devh, data->interface);
 }
 
-static int send_msg(struct usbdev_data *data, int msg)
+struct msg_entry {
+	char *data;
+	int len;
+};
+
+static int send_msg(struct usbdev_data *data, struct msg_entry *msg)
 {
 	int transferred;
 
 	return libusb_bulk_transfer(data->devh, data->msg_endpoint,
-				    (void *) messages[msg], message_len[msg],
+				    (void *) msg->data, msg->len,
 				    &transferred, 3000);
 }
 
@@ -43,29 +48,15 @@ static int read_response(struct usbdev_data *data, int len)
 	return ret;
 }
 
-static void send_messages(struct usbdev_data *data, struct blob_attr *attr)
+static void send_messages(struct usbdev_data *data, struct msg_entry *msg, int n_msg)
 {
-	struct blob_attr *cur;
-	int rem;
+	int i, len;
 
 	libusb_claim_interface(data->devh, data->interface);
 	libusb_clear_halt(data->devh, data->msg_endpoint);
 
-	blobmsg_for_each_attr(cur, attr, rem) {
-		int msg, len;
-
-		if (blobmsg_type(cur) != BLOBMSG_TYPE_INT32) {
-			fprintf(stderr, "Invalid data in message list\n");
-			return;
-		}
-
-		msg = blobmsg_get_u32(cur);
-		if (msg >= n_messages) {
-			fprintf(stderr, "Message index out of range!\n");
-			return;
-		}
-
-		if (send_msg(data, msg)) {
+	for (i = 0; i < n_msg; i++) {
+		if (send_msg(data, &msg[i])) {
 			fprintf(stderr, "Failed to send switch message\n");
 			continue;
 		}
@@ -73,10 +64,10 @@ static void send_messages(struct usbdev_data *data, struct blob_attr *attr)
 		if (!data->need_response)
 			continue;
 
-		if (!memcmp(messages[msg], "\x55\x53\x42\x43", 4))
+		if (!memcmp(msg[i].data, "\x55\x53\x42\x43", 4))
 			len = 13;
 		else
-			len = message_len[msg];
+			len = msg[i].len;
 
 		if (read_response(data, len))
 			return;
@@ -94,58 +85,207 @@ static void send_messages(struct usbdev_data *data, struct blob_attr *attr)
 	return;
 }
 
+static void send_config_messages(struct usbdev_data *data, struct blob_attr *attr)
+{
+	struct blob_attr *cur;
+	int rem, n_msg = 0;
+	struct msg_entry *msg;
+
+	blobmsg_for_each_attr(cur, attr, rem)
+		n_msg++;
+
+	msg = alloca(n_msg * sizeof(*msg));
+	n_msg = 0;
+	blobmsg_for_each_attr(cur, attr, rem) {
+		int msg_nr;
+
+		if (blobmsg_type(cur) != BLOBMSG_TYPE_INT32) {
+			fprintf(stderr, "Invalid data in message list\n");
+			return;
+		}
+
+		msg_nr = blobmsg_get_u32(cur);
+		if (msg_nr >= n_messages) {
+			fprintf(stderr, "Message index out of range!\n");
+			return;
+		}
+
+		msg[n_msg].data = messages[msg_nr];
+		msg[n_msg++].len = message_len[msg_nr];
+	}
+
+	send_messages(data, msg, n_msg);
+}
+
 static void handle_generic(struct usbdev_data *data, struct blob_attr **tb)
 {
 	detach_driver(data);
-	send_messages(data, tb[DATA_MSG]);
+	send_config_messages(data, tb[DATA_MSG]);
+}
+
+static void send_control_packet(struct usbdev_data *data, uint8_t type, uint8_t req,
+				uint16_t val, uint16_t idx, int len)
+{
+	unsigned char *buffer = alloca(len ? len : 1);
+
+	libusb_control_transfer(data->devh, type, req, val, idx, buffer, len, 1000);
 }
 
 static void handle_huawei(struct usbdev_data *data, struct blob_attr **tb)
 {
-	/* TODO */
+	int type = LIBUSB_REQUEST_TYPE_STANDARD | LIBUSB_RECIPIENT_DEVICE;
+	send_control_packet(data, type, LIBUSB_REQUEST_SET_FEATURE, 1, 0, 0);
 }
 
 static void handle_sierra(struct usbdev_data *data, struct blob_attr **tb)
 {
-	/* TODO */
+	int type = LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE;
+	send_control_packet(data, type, LIBUSB_REQUEST_SET_INTERFACE, 1, 0, 0);
 }
 
 static void handle_sony(struct usbdev_data *data, struct blob_attr **tb)
 {
-	/* TODO */
+	int type = LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_ENDPOINT_IN;
+	int i;
+
+	detach_driver(data);
+	send_control_packet(data, type, 0x11, 2, 0, 3);
+
+	libusb_close(data->devh);
+	sleep(5);
+
+	for (i = 0; i < 25; i++) {
+		data->devh = libusb_open_device_with_vid_pid(usb,
+			data->desc.idVendor, data->desc.idProduct);
+		if (data->devh)
+			break;
+	}
+
+	send_control_packet(data, type, 0x11, 2, 0, 3);
 }
 
 static void handle_qisda(struct usbdev_data *data, struct blob_attr **tb)
 {
-	/* TODO */
+	static unsigned char buffer[] = "\x05\x8c\x04\x08\xa0\xee\x20\x00\x5c\x01\x04\x08\x98\xcd\xea\xbf";
+	int type = LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE;
+
+	libusb_control_transfer(data->devh, type, 0x04, 0, 0, buffer, 16, 1000);
 }
 
 static void handle_gct(struct usbdev_data *data, struct blob_attr **tb)
 {
+	int type = LIBUSB_REQUEST_TYPE_CLASS | LIBUSB_RECIPIENT_INTERFACE | LIBUSB_ENDPOINT_IN;
+
 	detach_driver(data);
-	/* TODO */
+
+	if (libusb_claim_interface(data->devh, data->interface))
+	    return;
+
+	send_control_packet(data, type, 0xa0, 0, data->interface, 1);
+	send_control_packet(data, type, 0xfe, 0, data->interface, 1);
+
+	libusb_release_interface(data->devh, data->interface);
 }
 
 static void handle_kobil(struct usbdev_data *data, struct blob_attr **tb)
 {
+	int type = LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE | LIBUSB_ENDPOINT_IN;
+
 	detach_driver(data);
-	/* TODO */
+	send_control_packet(data, type, 0x88, 0, 0, 8);
 }
 
 static void handle_sequans(struct usbdev_data *data, struct blob_attr **tb)
 {
-	/* TODO */
+	int type = LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE;
+	send_control_packet(data, type, LIBUSB_REQUEST_SET_INTERFACE, 2, 0, 0);
+}
+
+static void mobile_action_interrupt_msg(struct usbdev_data *data, void *msg, int n_in)
+{
+	unsigned char *buf = alloca(8);
+	int ep_out = 0x02, ep_in = 0x81;
+	int transferred;
+	int i;
+
+	if (msg)
+		libusb_interrupt_transfer(data->devh, ep_out, msg, 8, &transferred, 1000);
+	for (i = 0; i < n_in; i++)
+		libusb_interrupt_transfer(data->devh, ep_in, buf, 8, &transferred, 1000);
 }
 
 static void handle_mobile_action(struct usbdev_data *data, struct blob_attr **tb)
 {
-	/* TODO */
+	int type = LIBUSB_REQUEST_TYPE_CLASS | LIBUSB_RECIPIENT_INTERFACE;
+	char *msg[] = {
+		"\xb0\x04\x00\x00\x02\x90\x26\x86",
+		"\x37\x01\xfe\xdb\xc1\x33\x1f\x83",
+		"\x37\x0e\xb5\x9d\x3b\x8a\x91\x51",
+		"\x34\x87\xba\x0d\xfc\x8a\x91\x51",
+		"\x37\x01\xfe\xdb\xc1\x33\x1f\x83",
+		"\x37\x0e\xb5\x9d\x3b\x8a\x91\x51",
+		"\x34\x87\xba\x0d\xfc\x8a\x91\x51",
+		"\x33\x04\xfe\x00\xf4\x6c\x1f\xf0",
+		"\x32\x07\xfe\xf0\x29\xb9\x3a\xf0"
+	};
+	int i;
+
+	for (i = 0; i < 2; i++)
+		libusb_control_transfer(data->devh, type, 0x09, 0x0300, 0, (void *) msg[0], 8, 1000);
+	mobile_action_interrupt_msg(data, NULL, 2);
+	mobile_action_interrupt_msg(data, msg[1], 1);
+	mobile_action_interrupt_msg(data, msg[2], 1);
+	mobile_action_interrupt_msg(data, msg[3], 63);
+	mobile_action_interrupt_msg(data, msg[4], 1);
+	mobile_action_interrupt_msg(data, msg[5], 1);
+	mobile_action_interrupt_msg(data, msg[6], 73);
+	mobile_action_interrupt_msg(data, msg[7], 1);
+	mobile_action_interrupt_msg(data, msg[8], 1);
 }
 
 static void handle_cisco(struct usbdev_data *data, struct blob_attr **tb)
 {
+	static struct msg_entry msgs[] = {
+		{
+			"\x55\x53\x42\x43\xf8\x3b\xcd\x81\x00\x02\x00\x00\x80\x00\x0a\xfd"
+			"\x00\x00\x00\x03\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00", 31
+		}, {
+			"\x55\x53\x42\x43\x98\x43\x00\x82\x00\x02\x00\x00\x80\x00\x0a\xfd"
+			"\x00\x00\x00\x07\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00", 31
+		}, {
+			"\x55\x53\x42\x43\x98\x43\x00\x82\x00\x00\x00\x00\x00\x00\x0a\xfd"
+			"\x00\x01\x00\x07\x10\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", 31
+		}, {
+			"\x55\x53\x42\x43\x98\x43\x00\x82\x00\x02\x00\x00\x80\x00\x0a\xfd"
+			"\x00\x02\x00\x23\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00", 31
+		}, {
+			"\x55\x53\x42\x43\x98\x43\x00\x82\x00\x00\x00\x00\x00\x00\x0a\xfd"
+			"\x00\x03\x00\x23\x82\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", 31
+		}, {
+			"\x55\x53\x42\x43\x98\x43\x00\x82\x00\x02\x00\x00\x80\x00\x0a\xfd"
+			"\x00\x02\x00\x26\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00", 31
+		}, {
+			"\x55\x53\x42\x43\x98\x43\x00\x82\x00\x00\x00\x00\x00\x00\x0a\xfd"
+			"\x00\x03\x00\x26\xc8\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", 31
+		}, {
+			"\x55\x53\x42\x43\xd8\x4c\x04\x82\x00\x02\x00\x00\x80\x00\x0a\xfd"
+			"\x00\x00\x10\x73\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00", 31
+		}, {
+			"\x55\x53\x42\x43\xd8\x4c\x04\x82\x00\x02\x00\x00\x80\x00\x0a\xfd"
+			"\x00\x02\x00\x24\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00", 31
+		}, {
+			"\x55\x53\x42\x43\xd8\x4c\x04\x82\x00\x00\x00\x00\x00\x00\x0a\xfd"
+			"\x00\x03\x00\x24\x13\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", 31
+		}, {
+			"\x55\x53\x42\x43\xd8\x4c\x04\x82\x00\x00\x00\x00\x00\x00\x0a\xfd"
+			"\x00\x01\x10\x73\x24\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", 31
+		}
+
+	};
+
 	detach_driver(data);
-	/* TODO */
+	data->need_response = true;
+	send_messages(data, msgs, ARRAY_SIZE(msgs));
 }
 
 static void set_alt_setting(struct usbdev_data *data, int setting)

@@ -22,6 +22,7 @@ struct usbdev_data {
 extern char **messages;
 extern int *message_len;
 extern int n_messages;
+extern struct libusb_context *usb;
 
 void handle_switch(struct usbdev_data *data);
 

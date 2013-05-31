@@ -25,7 +25,7 @@ int n_messages = 0;
 
 static struct avl_tree devices;
 
-static struct libusb_context *usb;
+struct libusb_context *usb;
 static struct libusb_device **usbdevs;
 static int n_usbdevs;
 
@@ -280,7 +280,8 @@ static void iterate_devs(cmd_cb_t cb)
 		if (data.config)
 			libusb_free_config_descriptor(data.config);
 
-		libusb_close(data.devh);
+		if (data.devh)
+			libusb_close(data.devh);
 	}
 }
 
