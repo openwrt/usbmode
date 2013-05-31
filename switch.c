@@ -9,6 +9,8 @@ enum {
 	DATA_RES_EP,
 	DATA_RESPONSE,
 	DATA_RELEASE_DELAY,
+	DATA_CONFIG,
+	DATA_ALT,
 	__DATA_MAX
 };
 
@@ -146,6 +148,15 @@ static void handle_cisco(struct usbdev_data *data, struct blob_attr **tb)
 	/* TODO */
 }
 
+static void set_alt_setting(struct usbdev_data *data, int setting)
+{
+	if (libusb_claim_interface(data->devh, data->interface))
+		return;
+
+	libusb_set_interface_alt_setting(data->devh, data->interface, setting);
+	libusb_release_interface(data->devh, data->interface);
+}
+
 enum {
 	MODE_GENERIC,
 	MODE_HUAWEI,
@@ -185,6 +196,8 @@ void handle_switch(struct usbdev_data *data)
 		[DATA_MSG_EP] = { .name = "msg_endpoint", .type = BLOBMSG_TYPE_INT32 },
 		[DATA_RES_EP] = { .name = "response_endpoint", .type = BLOBMSG_TYPE_INT32 },
 		[DATA_RESPONSE] = { .name = "response", .type = BLOBMSG_TYPE_INT32 },
+		[DATA_CONFIG] = { .name = "config", .type = BLOBMSG_TYPE_INT32 },
+		[DATA_ALT] = { .name = "alt", .type = BLOBMSG_TYPE_INT32 },
 	};
 	struct blob_attr *tb[__DATA_MAX];
 	int mode = MODE_GENERIC;
@@ -221,4 +234,18 @@ void handle_switch(struct usbdev_data *data)
 	}
 
 	modeswitch_cb[mode].cb(data, tb);
+
+	if (tb[DATA_CONFIG]) {
+		int config, config_new;
+
+		config_new = blobmsg_get_u32(tb[DATA_CONFIG]);
+		if (libusb_get_configuration(data->devh, &config) ||
+		    config != config_new)
+			libusb_set_configuration(data->devh, config_new);
+	}
+
+	if (tb[DATA_ALT]) {
+		int new = blobmsg_get_u32(tb[DATA_ALT]);
+		set_alt_setting(data, new);
+	}
 }
