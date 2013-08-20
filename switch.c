@@ -335,7 +335,7 @@ void handle_switch(struct usbdev_data *data)
 		[DATA_INTERFACE] = { .name = "interface", .type = BLOBMSG_TYPE_INT32 },
 		[DATA_MSG_EP] = { .name = "msg_endpoint", .type = BLOBMSG_TYPE_INT32 },
 		[DATA_RES_EP] = { .name = "response_endpoint", .type = BLOBMSG_TYPE_INT32 },
-		[DATA_RESPONSE] = { .name = "response", .type = BLOBMSG_TYPE_INT32 },
+		[DATA_RESPONSE] = { .name = "response", .type = BLOBMSG_TYPE_BOOL },
 		[DATA_CONFIG] = { .name = "config", .type = BLOBMSG_TYPE_INT32 },
 		[DATA_ALT] = { .name = "alt", .type = BLOBMSG_TYPE_INT32 },
 	};
