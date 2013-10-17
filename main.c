@@ -215,6 +215,7 @@ parse_interface_config(libusb_device *dev, struct usbdev_data *data)
 
 	alt = &iface->altsetting[0];
 	data->interface = alt->bInterfaceNumber;
+	data->dev_class = alt->bInterfaceClass;
 
 	for (i = 0; i < alt->bNumEndpoints; i++) {
 		const struct libusb_endpoint_descriptor *ep = &alt->endpoint[i];

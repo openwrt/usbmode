@@ -11,6 +11,7 @@ enum {
 	DATA_RELEASE_DELAY,
 	DATA_CONFIG,
 	DATA_ALT,
+	DATA_DEV_CLASS,
 	__DATA_MAX
 };
 
@@ -410,11 +411,16 @@ void handle_switch(struct usbdev_data *data)
 		[DATA_RESPONSE] = { .name = "response", .type = BLOBMSG_TYPE_BOOL },
 		[DATA_CONFIG] = { .name = "config", .type = BLOBMSG_TYPE_INT32 },
 		[DATA_ALT] = { .name = "alt", .type = BLOBMSG_TYPE_INT32 },
+		[DATA_DEV_CLASS] = { .name = "t_class", .type = BLOBMSG_TYPE_INT32 },
 	};
 	struct blob_attr *tb[__DATA_MAX];
 	int mode = MODE_GENERIC;
+	int t_class = 0;
 
 	blobmsg_parse(data_policy, __DATA_MAX, tb, blobmsg_data(data->info), blobmsg_data_len(data->info));
+
+	if (tb[DATA_DEV_CLASS])
+		t_class = blobmsg_get_u32(tb[DATA_DEV_CLASS]);
 
 	if (tb[DATA_INTERFACE])
 		data->interface = blobmsg_get_u32(tb[DATA_INTERFACE]);
@@ -430,6 +436,9 @@ void handle_switch(struct usbdev_data *data)
 
 	if (tb[DATA_RESPONSE])
 		data->need_response = blobmsg_get_bool(tb[DATA_RESPONSE]);
+
+	if (t_class > 0 && data->dev_class != t_class)
+		return;
 
 	if (tb[DATA_MODE]) {
 		const char *modestr;

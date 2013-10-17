@@ -14,6 +14,7 @@ struct usbdev_data {
 	int msg_endpoint;
 	int response_endpoint;
 	int release_delay;
+	int dev_class;
 	bool need_response;
 
 	char idstr[10];
