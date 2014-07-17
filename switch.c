@@ -137,6 +137,37 @@ static void handle_huawei(struct usbdev_data *data, struct blob_attr **tb)
 	send_control_packet(data, type, LIBUSB_REQUEST_SET_FEATURE, 1, 0, 0);
 }
 
+static void handle_huaweinew(struct usbdev_data *data, struct blob_attr **tb)
+{
+	static struct msg_entry msgs[] = {
+		{
+			"\x55\x53\x42\x43\x12\x34\x56\x78\x00\x00\x00\x00\x00\x00\x00\x11"
+			"\x06\x20\x00\x00\x01\x01\x00\x01\x00\x00\x00\x00\x00\x00\x00", 31
+		}
+	};
+
+	detach_driver(data);
+	data->need_response = false;
+	send_messages(data, msgs, ARRAY_SIZE(msgs));
+}
+
+static void handle_standardeject(struct usbdev_data *data, struct blob_attr **tb)
+{
+	static struct msg_entry msgs[] = {
+		{
+			"\x55\x53\x42\x43\x12\x34\x56\x78\x00\x00\x00\x00\x00\x00\x06\x1e"
+			"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", 31
+		}, {
+			"\x55\x53\x42\x43\x12\x34\x56\x79\x00\x00\x00\x00\x00\x00\x06\x1b"
+			"\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", 31
+		}
+	};
+
+	detach_driver(data);
+	data->need_response = true;
+	send_messages(data, msgs, ARRAY_SIZE(msgs));
+}
+
 static void handle_sierra(struct usbdev_data *data, struct blob_attr **tb)
 {
 	int type = LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE;
@@ -300,7 +331,9 @@ static void set_alt_setting(struct usbdev_data *data, int setting)
 enum {
 	MODE_GENERIC,
 	MODE_HUAWEI,
+	MODE_HUAWEINEW,
 	MODE_SIERRA,
+	MODE_STDEJECT,
 	MODE_SONY,
 	MODE_QISDA,
 	MODE_GCT,
@@ -316,7 +349,9 @@ static const struct {
 	void (*cb)(struct usbdev_data *data, struct blob_attr **tb);
 } modeswitch_cb[__MODE_MAX] = {
 	[MODE_GENERIC] = { "Generic", handle_generic },
+	[MODE_STDEJECT] = { "StandardEject", handle_standardeject },
 	[MODE_HUAWEI] = { "Huawei", handle_huawei },
+	[MODE_HUAWEINEW] = { "HuaweiNew", handle_huaweinew },
 	[MODE_SIERRA] = { "Sierra", handle_sierra },
 	[MODE_SONY] = { "Sony", handle_sony },
 	[MODE_QISDA] = { "Qisda", handle_qisda },
