@@ -59,6 +59,7 @@ my %options = (
 	MessageContent3 => $msg_option,
 	WaitBefore => [ ],
 	DetachStorageOnly => [ ],
+	MBIM => $mode_option,
 	HuaweiMode => $mode_option,
 	HuaweiNewMode => $mode_option,
 	SierraMode => $mode_option,

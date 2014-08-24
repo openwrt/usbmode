@@ -319,6 +319,41 @@ static void handle_cisco(struct usbdev_data *data, struct blob_attr **tb)
 	send_messages(data, msgs, ARRAY_SIZE(msgs));
 }
 
+static void handle_mbim(struct usbdev_data *data, struct blob_attr **tb)
+{
+	int j;
+
+	if (data->desc.bNumConfigurations < 2)
+		return;
+
+	for (j = 0; j < data->desc.bNumConfigurations; j++) {
+		struct libusb_config_descriptor *config;
+		int i;
+
+		libusb_get_config_descriptor(data->dev, j, &config);
+
+		for (i = 0; i < config->bNumInterfaces; i++) {
+			if (config->interface[i].altsetting[0].bInterfaceClass == 2) {
+				if (config->interface[i].altsetting[0].bInterfaceSubClass == 0x0e) {
+					struct libusb_config_descriptor *active;
+					int count = 5;
+
+				        libusb_get_active_config_descriptor(data->dev, &active);
+					if (active->bConfigurationValue == config->bConfigurationValue)
+						return;
+					while ((libusb_set_configuration(data->devh, config->bConfigurationValue) < 0) && --count)
+						libusb_detach_kernel_driver(data->devh, active->interface[0].altsetting[0].bInterfaceNumber);
+
+					libusb_free_config_descriptor(config);
+					return;
+				}
+			}
+		}
+
+		libusb_free_config_descriptor(config);
+	}
+}
+
 static void set_alt_setting(struct usbdev_data *data, int setting)
 {
 	if (libusb_claim_interface(data->devh, data->interface))
@@ -341,6 +376,7 @@ enum {
 	MODE_SEQUANS,
 	MODE_MOBILE_ACTION,
 	MODE_CISCO,
+	MODE_MBIM,
 	__MODE_MAX
 };
 
@@ -360,6 +396,7 @@ static const struct {
 	[MODE_SEQUANS] = { "Sequans", handle_sequans },
 	[MODE_MOBILE_ACTION] = { "MobileAction", handle_mobile_action },
 	[MODE_CISCO] = { "Cisco", handle_cisco },
+	[MODE_MBIM] = { "MBIM", handle_mbim },
 };
 
 void handle_switch(struct usbdev_data *data)

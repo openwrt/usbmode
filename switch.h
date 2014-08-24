@@ -7,6 +7,7 @@
 struct usbdev_data {
 	struct libusb_device_descriptor desc;
 	struct libusb_config_descriptor *config;
+	libusb_device *dev;
 	libusb_device_handle *devh;
 	struct blob_attr *info;
 	int interface;

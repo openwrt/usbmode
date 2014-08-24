@@ -261,6 +261,8 @@ static void iterate_devs(cmd_cb_t cb)
 		if (libusb_open(usbdevs[i], &data.devh))
 			continue;
 
+		data.dev = usbdevs[i];
+
 		libusb_get_string_descriptor_ascii(
 			data.devh, data.desc.iManufacturer,
 			(void *) data.mfg, sizeof(data.mfg));
