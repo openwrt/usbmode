@@ -14,8 +14,9 @@ find_package(PkgConfig)
 pkg_check_modules(LIBUSB1 REQUIRED libusb-1.0)
 ADD_DEFINITIONS(${LIBUSB1_CFLAGS})
 FIND_LIBRARY(libusb NAMES usb-1.0 HINTS ${LIBUSB1_LIBDIR})
+FIND_LIBRARY(json NAMES json-c json)
 
-SET(LIBS ubox blobmsg_json ${libusb})
+SET(LIBS ubox blobmsg_json ${libusb} ${json})
 
 IF(DEBUG)
   ADD_DEFINITIONS(-DDEBUG -g3)
