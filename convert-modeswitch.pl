@@ -9,7 +9,7 @@ sub add_message {
 	my $msg = shift;
 	my $val = $messages{$msg};
 
-	$val or do {
+	defined($val) or do {
 		$val = $msg_ctr++;
 		$messages{$msg} = $val;
 	};
