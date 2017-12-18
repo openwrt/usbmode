@@ -62,6 +62,7 @@ my %options = (
 	MBIM => $mode_option,
 	HuaweiMode => $mode_option,
 	HuaweiNewMode => $mode_option,
+	OptionMode => $mode_option,
 	SierraMode => $mode_option,
 	SonyMode => $mode_option,
 	QisdaMode => $mode_option,

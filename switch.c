@@ -152,6 +152,20 @@ static void handle_huaweinew(struct usbdev_data *data, struct blob_attr **tb)
 	send_messages(data, msgs, ARRAY_SIZE(msgs));
 }
 
+static void handle_option(struct usbdev_data *data, struct blob_attr **tb)
+{
+	static struct msg_entry msgs[] = {
+		{
+			"\x55\x53\x42\x43\x12\x34\x56\x78\x00\x00\x00\x00\x00\x00\x06\x01"
+			"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00", 31
+		}
+	};
+
+	detach_driver(data);
+	data->need_response = false;
+	send_messages(data, msgs, ARRAY_SIZE(msgs));
+}
+
 static void handle_standardeject(struct usbdev_data *data, struct blob_attr **tb)
 {
 	static struct msg_entry msgs[] = {
@@ -384,6 +398,7 @@ enum {
 	MODE_MOBILE_ACTION,
 	MODE_CISCO,
 	MODE_MBIM,
+	MODE_OPTION,
 	__MODE_MAX
 };
 
@@ -404,6 +419,7 @@ static const struct {
 	[MODE_MOBILE_ACTION] = { "MobileAction", handle_mobile_action },
 	[MODE_CISCO] = { "Cisco", handle_cisco },
 	[MODE_MBIM] = { "MBIM", handle_mbim },
+	[MODE_OPTION] = { "Option", handle_option },
 };
 
 void handle_switch(struct usbdev_data *data)
