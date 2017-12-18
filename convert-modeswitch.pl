@@ -46,9 +46,15 @@ sub add_mode {
 	return $_[1];
 }
 
+sub add_modeval {
+        return unless ($_[1] && $_[1] =~ /^\d+$/);
+	$_[0]->{"ModeValue"} = $_[1];
+}
+
 my $hex_option = [ undef, \&add_hex ];
 my $msg_option = [ undef, \&add_message ];
 my $mode_option = [ "Mode", \&add_mode ];
+my $value_mode_option = [ "Mode", \&add_mode, \&add_modeval ];
 my %options = (
 	TargetVendor => $hex_option,
 	TargetProductList => [ "TargetProduct", sub { return [ map(hex,split(/,/, $_[0])) ]; } ],
@@ -64,6 +70,7 @@ my %options = (
 	HuaweiNewMode => $mode_option,
 	QuantaMode => $mode_option,
 	BlackberryMode => $mode_option,
+	PantechMode => $value_mode_option,
 	OptionMode => $mode_option,
 	SierraMode => $mode_option,
 	SonyMode => $mode_option,
@@ -116,6 +123,7 @@ sub parse_file($) {
 			next;
 		};
 
+		$opt->[2] and &{$opt->[2]}($dev, $val, $var);
 		$opt->[1] and $val = &{$opt->[1]}($val, $var);
 		$opt->[0] and $var = $opt->[0];
 		$dev->{$var} = $val;
@@ -210,6 +218,7 @@ foreach my $devid (sort keys %devices) {
 		dev_opt($cur->{TargetClass}, "t_class", "int", \$sep);
 		dev_opt($cur->{DetachStorageOnly}, "detach_storage", "bool", \$sep);
 		dev_opt($cur->{Mode}, "mode", "string", \$sep);
+		dev_opt($cur->{ModeValue}, "modeval", "int", \$sep);
 		dev_opt($cur->{NoDriverLoading}, "no_driver", "bool", \$sep);
 		dev_opt($cur->{MessageEndpoint}, "msg_endpoint", "int", \$sep);
 		my $msg = [

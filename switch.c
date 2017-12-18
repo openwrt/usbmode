@@ -3,6 +3,7 @@
 
 enum {
 	DATA_MODE,
+	DATA_MODEVAL,
 	DATA_MSG,
 	DATA_INTERFACE,
 	DATA_MSG_EP,
@@ -392,6 +393,18 @@ static void handle_blackberry(struct usbdev_data *data, struct blob_attr **tb)
 	send_control_packet(data, type, 0xa9, 0x000e, 0, 8);
 }
 
+static void handle_pantech(struct usbdev_data *data, struct blob_attr **tb)
+{
+	int type = LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE | LIBUSB_ENDPOINT_OUT;
+	int val = 1;
+
+	if (tb[DATA_MODEVAL])
+		val = blobmsg_get_u32(tb[DATA_MODEVAL]);
+	detach_driver(data);
+	if (val > 1)
+		send_control_packet(data, type, 0x70, val, 0, 0);
+}
+
 static void set_alt_setting(struct usbdev_data *data, int setting)
 {
 	if (libusb_claim_interface(data->devh, data->interface))
@@ -418,6 +431,7 @@ enum {
 	MODE_OPTION,
 	MODE_QUANTA,
 	MODE_BLACKBERRY,
+	MODE_PANTECH,
 	__MODE_MAX
 };
 
@@ -441,12 +455,14 @@ static const struct {
 	[MODE_OPTION] = { "Option", handle_option },
 	[MODE_QUANTA] = { "Quanta", handle_quanta },
 	[MODE_BLACKBERRY] = { "Blackberry", handle_blackberry },
+	[MODE_PANTECH] = { "Pantech", handle_pantech },
 };
 
 void handle_switch(struct usbdev_data *data)
 {
 	static const struct blobmsg_policy data_policy[__DATA_MAX] = {
 		[DATA_MODE] = { .name = "mode", .type = BLOBMSG_TYPE_STRING },
+		[DATA_MODEVAL] = { .name = "modeval", .type = BLOBMSG_TYPE_INT32 },
 		[DATA_MSG] = { .name = "msg", .type = BLOBMSG_TYPE_ARRAY },
 		[DATA_INTERFACE] = { .name = "interface", .type = BLOBMSG_TYPE_INT32 },
 		[DATA_MSG_EP] = { .name = "msg_endpoint", .type = BLOBMSG_TYPE_INT32 },
