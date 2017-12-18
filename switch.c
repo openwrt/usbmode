@@ -375,6 +375,23 @@ static void handle_mbim(struct usbdev_data *data, struct blob_attr **tb)
 	}
 }
 
+static void handle_quanta(struct usbdev_data *data, struct blob_attr **tb)
+{
+	int type = LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE | LIBUSB_ENDPOINT_IN;
+
+	detach_driver(data);
+	send_control_packet(data, type, 0xff, 0, 0, 8);
+}
+
+static void handle_blackberry(struct usbdev_data *data, struct blob_attr **tb)
+{
+	int type = LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_RECIPIENT_DEVICE | LIBUSB_ENDPOINT_IN;
+
+	detach_driver(data);
+	send_control_packet(data, type, 0xb1, 0x0000, 0, 8);
+	send_control_packet(data, type, 0xa9, 0x000e, 0, 8);
+}
+
 static void set_alt_setting(struct usbdev_data *data, int setting)
 {
 	if (libusb_claim_interface(data->devh, data->interface))
@@ -399,6 +416,8 @@ enum {
 	MODE_CISCO,
 	MODE_MBIM,
 	MODE_OPTION,
+	MODE_QUANTA,
+	MODE_BLACKBERRY,
 	__MODE_MAX
 };
 
@@ -420,6 +439,8 @@ static const struct {
 	[MODE_CISCO] = { "Cisco", handle_cisco },
 	[MODE_MBIM] = { "MBIM", handle_mbim },
 	[MODE_OPTION] = { "Option", handle_option },
+	[MODE_QUANTA] = { "Quanta", handle_quanta },
+	[MODE_BLACKBERRY] = { "Blackberry", handle_blackberry },
 };
 
 void handle_switch(struct usbdev_data *data)
