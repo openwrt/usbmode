@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 #ifndef __USBMODE_SWITCH_H
 #define __USBMODE_SWITCH_H
 
